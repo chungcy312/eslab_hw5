@@ -51,6 +51,12 @@
 
 /* USER CODE BEGIN PV */
 
+volatile uint32_t capture_prev = 0;
+volatile uint32_t period_ticks = 0;
+volatile uint32_t measured_frequency = 0;
+volatile uint8_t capture_started = 0;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,7 +107,13 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  //__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 250);
+  //__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 500);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 750);
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
 
   /* USER CODE END 2 */
 
@@ -177,6 +189,33 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3 &&
+        htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        uint32_t now =
+            HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+
+        if (capture_started)
+        {
+            uint32_t diff =
+                (now - capture_prev) & 0xFFFFU;
+
+            if (diff > 0)
+            {
+                period_ticks = diff;
+                measured_frequency = 1000000U / diff;
+            }
+        }
+
+        capture_prev = now;
+        capture_started = 1;
+    }
+}
+
 
 /* USER CODE END 4 */
 
